@@ -1,6 +1,6 @@
 import { Connection } from "./connection";
 
-type UserConnection = { userId: string; connection: Connection };
+type UserConnection = { connection: Connection; fullName?: string };
 
 export default class SSEConnectionManager {
   constructor() {
@@ -11,7 +11,8 @@ export default class SSEConnectionManager {
   }
   #connections: Map<string, Set<Connection>> = new Map();
 
-  #removeConnection({ userId, connection }: UserConnection) {
+  #removeConnection({ connection }: UserConnection) {
+    const userId = connection.userId;
     console.log(`Removing connection for user: ${userId}`);
     const set = this.#connections.get(userId);
 
@@ -35,34 +36,56 @@ export default class SSEConnectionManager {
     connection: Connection;
     data: string;
   }) {
+    if (!connection.canWriteToStream) {
+      connection.snapshot = data;
+      console.error(
+        `Cannot write to this connection ${connection.id}. Returning...`,
+      );
+      return;
+    }
     try {
       const ok = connection.res.write(data);
 
       if (!ok) {
+        connection.canWriteToStream = false;
+        connection.snapshot = data;
         console.error(`Slow client detected ⚠️`);
-        connection.res.destroy();
+
+        connection.res.once("drain", () => {
+          console.log("Connection is writable again");
+          connection.canWriteToStream = true;
+
+          connection.res.write(data);
+          connection.snapshot = undefined;
+        });
       }
     } catch (error) {
       console.error(`Error writing to connection: ${error}`);
     }
   }
 
-  manageConnection({ userId, connection }: UserConnection) {
+  manageConnection({ connection, fullName }: UserConnection) {
+    const userId = connection.userId;
     let userConnections = this.#connections.get(userId);
     if (!userConnections) {
       userConnections = new Set();
       this.#connections.set(userId, userConnections);
     }
     userConnections.add(connection);
+    this.broadcast({
+      data: {
+        id: crypto.randomUUID(),
+        data: `${fullName} joined`,
+        event: "new-user",
+      },
+    });
     console.log(
       `Added user: ${userId} to pool.\nNew pool size for user: ${userConnections.size}`,
     );
 
-    connection.req.once("close", () =>
-      this.#removeConnection({ userId, connection }),
-    );
+    connection.req.once("close", () => this.#removeConnection({ connection }));
     connection.req.once("aborted", () =>
-      this.#removeConnection({ userId, connection }),
+      this.#removeConnection({ connection }),
     );
   }
 
