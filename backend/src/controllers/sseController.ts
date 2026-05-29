@@ -1,4 +1,6 @@
 import asyncHandler from "../utils/asyncHandler";
+import SSEConnectionManager from "../utils/sse_connection_manager";
+const connectionManager = new SSEConnectionManager();
 
 const handleSSEConnection = asyncHandler(async (req, res, next) => {
   res.set({
@@ -8,5 +10,4 @@ const handleSSEConnection = asyncHandler(async (req, res, next) => {
   });
 });
 
-
-export default {handleSSEConnection}
+export default { handleSSEConnection };
