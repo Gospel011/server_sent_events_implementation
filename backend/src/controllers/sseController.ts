@@ -1,6 +1,7 @@
+import connectionManager from "../lib/sse_connection_manager";
 import asyncHandler from "../utils/asyncHandler";
-import SSEConnectionManager from "../utils/sse_connection_manager";
-const connectionManager = new SSEConnectionManager();
+import { Connection } from "../utils/connection";
+
 
 const handleSSEConnection = asyncHandler(async (req, res, next) => {
   res.set({
@@ -8,6 +9,10 @@ const handleSSEConnection = asyncHandler(async (req, res, next) => {
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
   });
+
+  const connection = new Connection(req, res);
+
+  connectionManager.manageConnection({ userId: req.user!.id, connection });
 });
 
 export default { handleSSEConnection };

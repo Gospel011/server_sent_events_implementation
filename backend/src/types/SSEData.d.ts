@@ -1,7 +1,7 @@
-type EventName = 'new-user'
+type EventName = "new-user" | "new-bid";
 interface SSEData {
-  id: number;
-  data: string;
+  id: string | number;
+  data: string | Record<string, any>;
   event: EventName;
   retry?: number;
 }

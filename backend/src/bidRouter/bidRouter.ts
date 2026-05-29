@@ -1,9 +1,10 @@
 import { Router } from "express";
-import sseController from "../controllers/sseController";
 import authController from "../controllers/authController";
+import bidController from "../controllers/bidController";
+
 const router = Router();
 
 router.use(authController.isLoggedIn);
-router.get("/", sseController.handleSSEConnection);
+router.post("/", bidController.bid);
 
 export default router;

@@ -2,6 +2,7 @@ import express from "express";
 import morgan from "morgan";
 import "dotenv/config";
 import authRouter from "./authRouter/authRouter";
+import bidRouter from "./bidRouter/bidRouter";
 import sseRouter from "./sseRouter/sseRouter";
 import globalErrorController from "./controllers/globalErrorController";
 import cors from "cors";
@@ -19,6 +20,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 app.use("/auth", authRouter);
+app.use("/bids", bidRouter);
 app.use("/events", sseRouter);
 
 app.use((req, res, next) => {

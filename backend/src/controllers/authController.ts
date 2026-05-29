@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
-import { CookieOptions, Request, Response } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
+import { CookieOptions, NextFunction, Request, Response } from "express";
+import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { createUser, findUserByEmail } from "../db/sqlite";
 import asyncHandler from "../utils/asyncHandler";
 import type { StringValue } from "ms";
@@ -9,6 +9,11 @@ const JWT_COOKIE_NAME = "token";
 const JWT_SECRET = process.env.JWT_SECRET ?? "dev-only-secret-change-me";
 const JWT_EXPIRES_IN: SignOptions["expiresIn"] = (process.env.JWT_EXPIRES_IN ??
   "7d") as StringValue;
+
+interface AuthTokenPayload extends JwtPayload {
+  sub: string;
+  fullName: string;
+}
 
 function getCookieOptions(): CookieOptions {
   const isProduction = process.env.NODE_ENV === "production";
@@ -27,6 +32,49 @@ function getClearCookieOptions(): CookieOptions {
   void maxAge;
   return cookieOptions;
 }
+
+function getCookieValue(req: Request, cookieName: string) {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return undefined;
+
+  const cookies = cookieHeader.split(";").map((entry) => entry.trim());
+  const targetPrefix = `${cookieName}=`;
+  const targetCookie = cookies.find((entry) => entry.startsWith(targetPrefix));
+
+  if (!targetCookie) return undefined;
+  return decodeURIComponent(targetCookie.slice(targetPrefix.length));
+}
+
+const isLoggedIn = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const token = getCookieValue(req, JWT_COOKIE_NAME);
+    if (!token) {
+      return res
+        .status(401)
+        .json({ status: "fail", message: "You are not logged in" });
+    }
+
+    let decodedToken: AuthTokenPayload;
+    try {
+      decodedToken = jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
+    } catch {
+      return res
+        .status(401)
+        .json({ status: "fail", message: "Invalid or expired token" });
+    }
+
+    if (!decodedToken.sub || !decodedToken.fullName) {
+      return res.status(401).json({ status: "fail", message: "Invalid token" });
+    }
+
+    req.user = {
+      id: decodedToken.sub,
+      fullName: decodedToken.fullName,
+    };
+
+    next();
+  },
+);
 
 const signup = asyncHandler(async (req: Request, res: Response) => {
   const { fullName, email, password } = req.body ?? {};
@@ -106,7 +154,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = jwt.sign(
-    { sub: String(user.id), email: user.email },
+    { sub: String(user.id), fullName: user.fullName },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN },
   );
@@ -135,6 +183,7 @@ const logout = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export default {
+  isLoggedIn,
   signup,
   login,
   logout,
