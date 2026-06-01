@@ -1,6 +1,6 @@
-# Live Auction (SSE Learning Project)
+# Live Auction (SSE Project)
 
-I started this project as a practical way to understand more on how server-sent events work.
+I started this project to design and implement server-sent events.
 
 At the core, the main implementation in this project is a live auction stream where connected clients
 receive bidding activity in real time. Authentication is done with cookies.
@@ -40,7 +40,7 @@ Once you hit the `GET /events` endpoint, the request handler (`handleSSEConnecti
 - sets required three headers required for the SSE connection to work.
     - `text/event-stream`: Indicates that the response is a stream. This is required for SSE to work properly
     - `no-cache`: This prevents the browser from caching responses.
-    - `keep-alive`: This ensures that the connection stays open. Occasional pings need to be sent over to the client to keep the connection active and prevent proxies or load balancers to closing it due to inactivity.
+    - `keep-alive`: This ensures that the connection stays open. Occasional pings need to be sent over to the client to keep the connection active and prevent proxies or load balancers from closing it due to inactivity.
 - wraps request and response in a custom `Connection` object
 - Hands over the connection to the connection manager `SSEConnectionManager` to manage for the loggedIn user
 
